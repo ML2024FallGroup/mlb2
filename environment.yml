@@ -2,7 +2,6 @@
 name: myenv
 channels:
   - roebel
-  - jwwatts
   - conda-forge
   - defaults
 dependencies:
@@ -17,6 +16,7 @@ dependencies:
   - gunicorn
   - tensorflow
   - channels
-  - channels-redis
+  - channels_redis
   - daphne
   - redis
+  - gevent
