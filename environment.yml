@@ -20,3 +20,4 @@ dependencies:
   - daphne
   - redis
   - gevent
+  - libsndfile
