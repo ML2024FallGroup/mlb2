@@ -30,6 +30,9 @@ createsuperuser:
 test:
 	docker-compose exec web conda run -n myenv python manage.py test
 
+alt:
+	docker-compose exec web conda run -n myenv python alt.py
+
 clean:
 	docker-compose down -v
 	find . -type d -name "__pycache__" -exec rm -r {} +
