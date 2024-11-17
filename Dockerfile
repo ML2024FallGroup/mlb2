@@ -16,15 +16,14 @@ WORKDIR /app
 COPY environment.yml .
 
 # Create conda environment and activate it for subsequent commands
-RUN conda config --add channels roebel && \
-    conda env create -f environment.yml && \
+RUN conda env create -f environment.yml && \
     echo "conda activate myenv" >> ~/.bashrc
 
 # Make RUN commands use the conda environment
 SHELL ["conda", "run", "-n", "myenv", "/bin/bash", "-c"]
 
 # Install additional packages that might not be in conda
-RUN pip install python-ffmpeg django-environ
+RUN pip install python-ffmpeg django-environ spleeter
 
 # Copy project files
 COPY . .
