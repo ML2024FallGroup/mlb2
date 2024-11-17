@@ -1,3 +1,8 @@
-from django.shortcuts import render
+from django.http import JsonResponse
+from .tasks import run
 
-# Create your views here.
+
+
+def index(request):
+     run.delay()
+     return JsonResponse({"message": "Hello, world. You're at the polls index."})
