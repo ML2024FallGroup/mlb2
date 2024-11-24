@@ -23,7 +23,7 @@ RUN conda env create -f environment.yml && \
 SHELL ["conda", "run", "-n", "myenv", "/bin/bash", "-c"]
 
 # Install additional packages that might not be in conda
-RUN pip install python-ffmpeg django-environ spleeter
+RUN pip install python-ffmpeg django-environ spleeter matplotlib
 
 # Copy project files
 COPY . .
