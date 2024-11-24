@@ -22,3 +22,7 @@ dependencies:
   - gevent
   - libsndfile
   - librosa
+  - pandas
+  - tqdm
+  - djangorestframework
+  - django-cors-headers
