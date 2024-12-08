@@ -1,4 +1,6 @@
+import json
 from os import path
+import os
 import subprocess
 
 from django.conf import settings
@@ -8,7 +10,7 @@ import numpy as np
 import librosa.display
 import matplotlib.pyplot as plt
 import pandas as pd
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 
 class AudioProcessor:
@@ -95,17 +97,84 @@ class AudioProcessor:
         total_duration = math.floor(librosa.get_duration(path=audio_path))
         filename, extension = audio_path.split('/')[-1].split('.')
         segment_count = 1
-        
+        segment_paths = []
         for start_time in range(0, total_duration, segment_duration):
             output_path = f'{output_dir}/{filename}_{segment_count}.{extension}'
             
             if start_time + segment_duration <= total_duration:
                 AudioProcessor.trim_audio(audio_path, output_path, start_time)
+                segment_paths.append(output_path)
             elif keep_remainder:
                 start_time = total_duration - segment_duration
                 AudioProcessor.trim_audio(audio_path, output_path, start_time)
+                segment_paths.append(output_path)
                 break
             segment_count += 1
+        return segment_paths
+    
+    @staticmethod
+    def get_metadata(audio_path: str) -> Dict[str, Optional[str]]:
+        """
+        Extracts basic metadata (title, artist, genre) from an audio file using ffmpeg.
+        
+        Args:
+            audio_path: Path to the audio file
+            
+        Returns:
+            Dictionary containing title, artist, and genre if available
+        """
+        cmd = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            audio_path,
+            '-loglevel', 'panic',
+        ]
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            metadata = json.loads(result.stdout)['format']['tags']
+            
+            return {
+                'title': metadata.get('title'),
+                'artist': metadata.get('artist'),
+                'genre': metadata.get('genre')
+            }
+        except:
+            return {
+                'title': None,
+                'artist': None,
+                'genre': None
+            }
+
+    @staticmethod
+    def extract_cover_art(audio_path: str, output_path: str) -> bool:
+        """
+        Extracts cover art from an audio file using ffmpeg.
+        
+        Args:
+            audio_path: Path to the audio file
+            output_path: Path where the cover art should be saved
+            
+        Returns:
+            bool: True if cover art was successfully extracted, False otherwise
+        """
+        cmd = [
+            "ffmpeg",
+            "-i", audio_path,
+            "-an",  # Disable audio
+            "-vcodec", "copy",  # Copy video codec (cover art)
+            "-y",  # Overwrite output file
+            output_path,
+            "-loglevel", "error"  # Only show errors
+        ]
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0 and os.path.exists(output_path)
+        except:
+            return False
 
     @staticmethod
     def extract_mfcc_features(audio_path: str, params: Dict[str, Any] = None) -> np.ndarray:
@@ -141,7 +210,7 @@ class AudioProcessor:
         return mfcc_features
 
     @staticmethod
-    def visualize_mfcc(audio_path: str, output_path: str) -> None:
+    def visualize_mfcc(audio_path: str) -> None:
         """
         Generates and saves MFCC visualization.
         
@@ -149,6 +218,11 @@ class AudioProcessor:
             audio_path: Path to audio file
             output_path: Path to save visualization
         """
+
+        output_dir = Path(settings.MEDIA_ROOT)/ 'imgs'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        filename, _ =  audio_path.split('/')[-1].split('.')
+        output_path = output_dir / filename
         plt.figure(figsize=(10, 4))
         mfcc_features = AudioProcessor.extract_mfcc_features(audio_path)
         librosa.display.specshow(mfcc_features, x_axis='time')
@@ -158,6 +232,7 @@ class AudioProcessor:
         plt.set_cmap('viridis')
         plt.savefig(output_path)
         plt.close()
+        return output_path
 
     @staticmethod
     def extract_audio_features(audio_path: str) -> Dict[str, float]:
@@ -258,20 +333,19 @@ class AudioProcessor:
     @staticmethod
     def process_audio_to_dataframe(audio_path: str) -> pd.DataFrame:
         """
-        Processes audio file and returns features as a DataFrame.
+        Processes audio file and returns features as a DataFrame with columns matching training data.
         
         Args:
             audio_path: Path to audio file
-            
+                
         Returns:
             pd.DataFrame: DataFrame containing extracted features
         """
         features = AudioProcessor.extract_audio_features(audio_path)
         df = pd.DataFrame([features])
         
-        # Define column order
+        # Define column order to match training data exactly
         column_order = [
-            'filename', 'length', 
             'chroma_stft_mean', 'chroma_stft_var',
             'rms_mean', 'rms_var',
             'spectral_centroid_mean', 'spectral_centroid_var',
@@ -283,8 +357,10 @@ class AudioProcessor:
             'tempo'
         ]
         
-        # Add MFCC columns
-        column_order.extend([f'mfcc{i+1}_mean' for i in range(20)])
-        column_order.extend([f'mfcc{i+1}_var' for i in range(20)])
+        # Add MFCC columns in the same order as training data
+        for i in range(1, 21):  # MFCC1 through MFCC20
+            column_order.append(f'mfcc{i}_mean')
+            column_order.append(f'mfcc{i}_var')
         
+        # Reorder columns to match training data exactly
         return df[column_order]
