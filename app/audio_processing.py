@@ -51,7 +51,7 @@ class AudioProcessor:
         subprocess.run(ffmpeg_command)
 
     @staticmethod
-    def separate_stems(input_path: str, output_dir: str, model_type: str = "spleeter:4stems") -> None:
+    def separate_stems(input_path: str, model_type: str = "spleeter:4stems") -> None:
         """
         Separates an audio file into stems using Spleeter.
         
@@ -67,6 +67,8 @@ class AudioProcessor:
         Raises:
             ValueError: If model_type is not one of the supported options
         """
+        output_dir = Path(settings.MEDIA_ROOT)/ 'audio' / 'stems' / input_path.split('/')[-1].split('.')[0]
+        output_dir.mkdir(parents=True, exist_ok=True)
         valid_models = {"spleeter:2stems", "spleeter:4stems", "spleeter:5stems"}
         if model_type not in valid_models:
             raise ValueError(f"Model type must be one of {valid_models}")
@@ -76,10 +78,12 @@ class AudioProcessor:
             'separate',
             input_path,
             "-p", model_type,
-            "-o", output_dir
+            "-o", str(output_dir),
+            "--filename_format", "{instrument}.wav"
         ]
         
         subprocess.run(spleeter_command, check=True)
+        return str(output_dir)
 
     @staticmethod
     def segment_audio(audio_path: str, segment_duration: int = DEFAULT_DURATION_SECONDS, 
@@ -92,7 +96,7 @@ class AudioProcessor:
             segment_duration: Duration of each segment in seconds
             keep_remainder: Whether to keep the remainder segment
         """
-        output_dir = Path(settings.MEDIA_ROOT)/ 'audio' / 'segments' / audio_path.split('/')[-1]
+        output_dir = Path(settings.MEDIA_ROOT)/ 'audio' / 'segments' / audio_path.split('/')[-1].split('.')[0]
         output_dir.mkdir(parents=True, exist_ok=True)
         total_duration = math.floor(librosa.get_duration(path=audio_path))
         filename, extension = audio_path.split('/')[-1].split('.')
@@ -149,7 +153,7 @@ class AudioProcessor:
             }
 
     @staticmethod
-    def extract_cover_art(audio_path: str, output_path: str) -> bool:
+    def extract_cover_art(audio_path: str) -> bool:
         """
         Extracts cover art from an audio file using ffmpeg.
         
@@ -160,6 +164,10 @@ class AudioProcessor:
         Returns:
             bool: True if cover art was successfully extracted, False otherwise
         """
+        output_dir = Path(settings.MEDIA_ROOT)/ 'imgs'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        filename, extension =  audio_path.split('/')[-1].split('.')
+        output_path = output_dir / f"{filename}_cover.png"
         cmd = [
             "ffmpeg",
             "-i", audio_path,
@@ -172,9 +180,9 @@ class AudioProcessor:
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.returncode == 0 and os.path.exists(output_path)
+            return f"{output_path}"
         except:
-            return False
+            return ''
 
     @staticmethod
     def extract_mfcc_features(audio_path: str, params: Dict[str, Any] = None) -> np.ndarray:
@@ -210,7 +218,7 @@ class AudioProcessor:
         return mfcc_features
 
     @staticmethod
-    def visualize_mfcc(audio_path: str) -> None:
+    def visualize_mfcc(audio_path: str, diff=False) -> None:
         """
         Generates and saves MFCC visualization.
         
@@ -221,18 +229,20 @@ class AudioProcessor:
 
         output_dir = Path(settings.MEDIA_ROOT)/ 'imgs'
         output_dir.mkdir(parents=True, exist_ok=True)
-        filename, _ =  audio_path.split('/')[-1].split('.')
-        output_path = output_dir / filename
+        filename, extension =  audio_path.split('/')[-1].split('.')
+        if not diff:
+            output_path = output_dir / filename
+        else:
+            output_path = output_dir / f"{Path(audio_path).parent.name}_{filename}"
         plt.figure(figsize=(10, 4))
         mfcc_features = AudioProcessor.extract_mfcc_features(audio_path)
         librosa.display.specshow(mfcc_features, x_axis='time')
         plt.colorbar(format='%+2.0f dB')
-        plt.title('MFCC Visualization')
         plt.tight_layout()
         plt.set_cmap('viridis')
         plt.savefig(output_path)
         plt.close()
-        return output_path
+        return str(output_path) +  ".png"
 
     @staticmethod
     def extract_audio_features(audio_path: str) -> Dict[str, float]:
