@@ -26,3 +26,8 @@ dependencies:
   - tqdm
   - djangorestframework
   - django-cors-headers
+  - joblib
+  - pyyaml
+  - h5py
+  - seaborn
+  - scikit-learn
