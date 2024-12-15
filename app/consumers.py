@@ -20,7 +20,7 @@ class Consumer(WebsocketConsumer):
                 'message': 'loud and clear'
             }
         )
-        run.delay()
+        # run.delay()
         
     def chat_message(self, event):
         message = event['message']
@@ -28,4 +28,24 @@ class Consumer(WebsocketConsumer):
         self.send(text_data=json.dumps({
             'type':'chat',
             'message':message
+        }))
+    
+    def main_message(self, event):
+        detail = event['detail']
+        _type = event['item_type']
+
+        self.send(text_data=json.dumps({
+            'type': 'chat',
+            'item_type': _type,
+            'detail': detail
+        }))
+
+    def stem_message(self, event):
+        detail = event['detail']
+        _type = event['item_type']
+
+        self.send(text_data=json.dumps({
+            'type': 'chat',
+            'item_type': _type,
+            'detail': detail
         }))
