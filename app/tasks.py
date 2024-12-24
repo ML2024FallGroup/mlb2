@@ -4,7 +4,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import time
 from pathlib import Path
-from mlb2.app.audio_processing_ import AudioProcessor
+from app.audio_processing import AudioProcessor
 import tensorflow as tf
 import joblib
 import numpy as np
